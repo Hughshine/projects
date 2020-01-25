@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.lex": "lex",
+        "cstdlib": "cpp",
+        "__config": "c"
+    }
+}
