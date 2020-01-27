@@ -30,6 +30,12 @@ int main(int argc, char* argv[]) {
             case PREPARE_SYNTAX_ERROR:
                 printf("Syntax error at start of '%s'.\n", input_buffer->buffer);
                 continue;
+            case PREPARE_INSERT_INVALID_LENGTH:
+                printf("Insertion failed due to invalid length of input. At start of '%s'.\n", input_buffer->buffer);
+                continue;
+            case PREPARE_INSERT_INVALID_ID:
+                printf("Insertion failed due to invalid id. At start of '%s'.\n", input_buffer->buffer);
+                continue;
             default:
                 break;
         }

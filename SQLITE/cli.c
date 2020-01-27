@@ -10,6 +10,7 @@ InputBuffer *new_input_buffer()
 
 void read_input(InputBuffer *input_buffer)
 {
+    // 如果传入的指针是NULL，getline会进行动态内存分配。
     ssize_t bytes_read = getline(&(input_buffer->buffer), &(input_buffer->buffer_length), stdin);
 
     if (bytes_read <= 0)

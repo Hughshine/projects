@@ -1,0 +1,6 @@
+bin/*
+spec/*
+.bundle/*
+Gemfile
+Gemfile.lock
+.rspec
