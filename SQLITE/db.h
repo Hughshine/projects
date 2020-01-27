@@ -4,8 +4,7 @@
 #include "common.h"
 #include "table.h"
 
-typedef enum
-{
+typedef enum {
     PREPARE_SUCCESS,
     PREPARE_UNRECOGNIZED_STATEMENT,
     PREPARE_SYNTAX_ERROR
@@ -19,6 +18,14 @@ typedef struct {
 }   Statement;
 
 PrepareResult prepare_statement(InputBuffer *input_buffer, Statement *statement);
-void execute_statement(Statement *statement);
+
+typedef enum {
+    EXECUTE_SUCCESS,
+    EXECUTE_TABLE_FULL
+} ExecuteResult;
+
+ExecuteResult execute_statement(Statement* statement, Table* table);
+ExecuteResult execute_insert(Statement *statement, Table *table);
+ExecuteResult execute_select(Statement *statement, Table *table);
 
 #endif

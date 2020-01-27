@@ -4,6 +4,7 @@
 
 int main(int argc, char* argv[]) {
     InputBuffer* input_buffer = new_input_buffer();
+    Table* user_table = new_table();
     while(1) {
         print_prompt();
         read_input(input_buffer);
@@ -26,11 +27,23 @@ int main(int argc, char* argv[]) {
             case (PREPARE_UNRECOGNIZED_STATEMENT):
                 printf("Unrecognized keyword at start of '%s'.\n", input_buffer->buffer);
                 continue;
+            case PREPARE_SYNTAX_ERROR:
+                printf("Syntax error at start of '%s'.\n", input_buffer->buffer);
+                continue;
             default:
                 break;
         }
         // 执行
-        execute_statement(&statement);
-        printf("Executed.\n");
+        switch (execute_statement(&statement, user_table)) {
+            case EXECUTE_SUCCESS:
+                printf("Executed.\n");
+                break;
+            case EXECUTE_TABLE_FULL:
+                printf("Error: Table full.\n");
+                break;
+            default:
+                printf("Error: Unknown execute result at start of '%s'.\n", input_buffer->buffer);
+                break;
+        }
     }
 }

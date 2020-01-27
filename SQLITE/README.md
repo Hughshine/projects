@@ -35,3 +35,4 @@ strcasecmp() 不区分大小写的全串比较
 # strnatcmp — 使用自然排序算法比较字符串，区分大小写。(php)
 ```
 3. [借助`extern`处理const常量的duplicate symbol问题](https://blog.csdn.net/Angel69Devil/article/details/76557066)
+4. `free()`怎么使用？谁需要被free？多层数组怎么free？
