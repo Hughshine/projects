@@ -37,3 +37,28 @@ strcasecmp() 不区分大小写的全串比较
 3. [借助`extern`处理const常量的duplicate symbol问题](https://blog.csdn.net/Angel69Devil/article/details/76557066)
 4. **`free()`怎么使用？谁需要被free？多层数组怎么free？**
 5. c 是不是不很需要 预编译头文件呀。。先不处理了。
+6. [`extern struct S`, `struct S`](https://stackoverflow.com/questions/50557424/extern-struct-forward-declaration)
+7. https://stackoverflow.com/questions/3041797/how-to-use-a-defined-struct-from-another-source-file/3041836
+8. `strcpy`, `strncpy`, `memcpy`.
+   > strncpy会复制到`'\0'`结束，剩余部分填充`'\0'`（一定会写size个字符）。复制字符串就用这个吧。
+   > memcpy就是完全复制
+   > strcpy以`'\0'`判断结束，要保证有。
+9. 序列化：内存中对象的表示，一般含有指针等复杂类型，并且非顺序存放。序列化时，需要将它完整准确存入某个位置，并将指针等没用的东西去掉。
+   > 不知道为什么`memcpy(dest + USERNAME_OFFSET, (source->username), USERNAME_SIZE);`  和 `memcpy(dest + USERNAME_OFFSET, &(source->username), USERNAME_SIZE);` 是等价的， (source->username) = &(source->username)..
+10. 数组行为与指针行为的差异。虽然一般认为数组与指针等价，但对两者 取地址 的行为不同.对数组去地址，只更改了类型（维度+1），地址值不改变（可以说，得不到存储数组首地址的地址）。数组与指针可以取地址的层数与它们的维度数相同，过多就会报“不能取右值的地址”。
+    ```c
+    char str[] = "123";
+    // char(* p)[] = &str;
+    printf("s1: %p\n", (str));
+    printf("&s1: %p\n", &(str));
+
+    char* str2 = str;
+    printf("s2: %p\n", (str2));
+    printf("&s2: %p\n", &(str2));
+    ```
+    ```
+    s1: 0x7fff589c53ac
+    &s1: 0x7fff589c53ac
+    s2: 0x7fff589c53ac
+    &s2: 0x7fff589c53a0
+    ```

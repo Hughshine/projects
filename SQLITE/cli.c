@@ -31,14 +31,12 @@ void close_input_buffer(InputBuffer *input_buffer)
 
 void print_prompt() { printf("db > "); }
 
-MetaCommandResult do_meta_command(InputBuffer *input_buffer)
+MetaCommandResult do_meta_command(InputBuffer *input_buffer, Table* table)
 {
-    if (strcmp(input_buffer->buffer, ".exit") == 0)
-    {
+    if (strcmp(input_buffer->buffer, ".exit") == 0) {
+        db_close(table);
         exit(EXIT_SUCCESS);
-    }
-    else
-    {
+    } else {
         return META_COMMAND_UNRECOGIZED_COMMAND;
     }
 }

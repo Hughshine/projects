@@ -4,16 +4,20 @@
 
 int main(int argc, char* argv[]) {
     InputBuffer* input_buffer = new_input_buffer();
-    Table* user_table = new_table();
+    if(argc < 2) {
+        printf("Must supply a database filename.\n");
+        exit(EXIT_FAILURE);
+    }
+    char* filename = argv[1];
+    Table* user_table = db_open(filename);
     while(1) {
         print_prompt();
         read_input(input_buffer);
         // 如果是元指令
         if (input_buffer->buffer[0] == '.') {
-            switch (do_meta_command(input_buffer)) {
+            switch (do_meta_command(input_buffer, user_table)) {
             case META_COMMAND_SUCCESS:
                 continue;
-                break;
             case META_COMMAND_UNRECOGIZED_COMMAND:
                 printf("Unrecognized command '%s'\n", input_buffer->buffer);
                 continue;
@@ -22,9 +26,9 @@ int main(int argc, char* argv[]) {
         // 若非元指令，对它“预分析”
         Statement statement;
         switch (prepare_statement(input_buffer, &statement)) {
-            case (PREPARE_SUCCESS):
+            case PREPARE_SUCCESS:
                 break;
-            case (PREPARE_UNRECOGNIZED_STATEMENT):
+            case PREPARE_UNRECOGNIZED_STATEMENT:
                 printf("Unrecognized keyword at start of '%s'.\n", input_buffer->buffer);
                 continue;
             case PREPARE_SYNTAX_ERROR:

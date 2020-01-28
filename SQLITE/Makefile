@@ -8,7 +8,7 @@ main: main.c
 .PHONY: test clean
 
 test: main
-	./db
+	./db ./database/db.msqlite
 
 clean: 
 	rm -rf *.o $(TARGET)
