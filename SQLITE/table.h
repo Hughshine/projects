@@ -39,12 +39,24 @@ typedef struct {
     Pager* pager;
 } Table;
 
+typedef struct {
+    Table* table; // cursor与表是绑定的
+    uint32_t row_num;
+    bool end_of_table; // 是否指向表之外
+} Cursor;
+
 Pager* pager_open(char* filename);
 void pager_flush(Pager *pager, uint32_t page_num, uint32_t size);
 void *get_page(Pager *pager, uint32_t row_num);
 Table* db_open(char *filename);
 void db_close(Table *table);
 void free_table(Table *table);
+
+// Cursor creation functions
+Cursor* table_start(Table* table);
+Cursor* table_end(Table* table);
+void* cursor_value(Cursor* cursor);
+void cursor_advance(Cursor* cursor);
 
 void* row_slot(Table* table, uint32_t row_num);
 void serialize_row(Row* source, void* dest);

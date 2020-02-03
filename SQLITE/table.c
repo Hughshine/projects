@@ -23,6 +23,7 @@ Table* db_open(char* filename) {
 // 将内存中的table的每一行写回磁盘。也即将pager中每个page按序写回磁盘
 // 仅根据pager，找不到最后一页
 void db_close(Table* table) { 
+    // printf("I'm I here?\n");
     Pager* pager = table->pager;
     uint32_t full_page_count = table->num_rows / ROWS_PER_PAGE;
 
@@ -135,16 +136,57 @@ void* get_page(Pager* pager, uint32_t page_num) {
     }
     return pager->pages[page_num];
 }
-// 获取该table，第n个row所在的地址. 如果尚未分配，则分配。
-// 问题：分配与取出规则不太匹配。如此分配，可以进行不连续的页分配。free时可能释放不掉。
-// 此时的table，比较像一级页表。
-void* row_slot(Table* table, uint32_t row_num) { // TODO
+
+Cursor* table_start(Table *table) {
+    Cursor *cursor = malloc(sizeof(Cursor));
+    cursor->table = table;
+    cursor->row_num = 0;
+    cursor->end_of_table = (table->num_rows == 0);
+    
+    return cursor;
+}
+
+Cursor* table_end(Table *table) {
+    Cursor *cursor = malloc(sizeof(Cursor));
+    cursor->table = table;
+    cursor->row_num = table->num_rows;
+    cursor->end_of_table = (table->num_rows == 0);
+
+    return cursor;
+}
+
+/**
+ * Cursor的值是void*————就是指向的行的地址嘛。
+ */ 
+void* cursor_value(Cursor* cursor) {
+    uint32_t row_num = cursor->row_num;
     uint32_t page_num = row_num / ROWS_PER_PAGE;
-    void* page = get_page(table->pager, page_num); // 不存在，则去磁盘上读
+    void* page = get_page(cursor->table->pager, page_num); // 不存在，则去磁盘上读
     uint32_t row_offset = row_num % ROWS_PER_PAGE;
     uint32_t byte_offset = row_offset * ROW_SIZE;
     return page + byte_offset;
 }
+
+void cursor_advance(Cursor* cursor) { 
+    cursor->row_num += 1;
+    if(cursor->row_num >= cursor->table->num_rows) {
+        cursor->end_of_table = true;
+    }
+}
+
+/*
+ * 获取该table，第n个row所在的地址. 如果尚未分配，则分配。
+ * 问题：分配与取出规则不太匹配。如此分配，可以进行不连续的页分配。free时可能释放不掉。
+ * 此时的table，比较像一级页表。
+ * 改使用Cursor抽象，用于分离对表的直接修改。
+ */
+// void* row_slot(Table* table, uint32_t row_num) { // TODO
+//     uint32_t page_num = row_num / ROWS_PER_PAGE;
+//     void* page = get_page(table->pager, page_num); // 不存在，则去磁盘上读
+//     uint32_t row_offset = row_num % ROWS_PER_PAGE;
+//     uint32_t byte_offset = row_offset * ROW_SIZE;
+//     return page + byte_offset;
+// }
 
 // 指针指向的值，需要被按序放置，是序列化的作用。结构体里，两个string只是两个指针。
 void serialize_row(Row *source, void *dest) {

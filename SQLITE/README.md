@@ -1,5 +1,11 @@
 # sqlite
 
+## usage
+
+```
+make test
+```
+
 ## google coding style of C
 
 文件名均小写，可以包含`_`，`-`。没有约定，则使用下划线。并尽可能的使文件名更明确。
@@ -62,3 +68,22 @@ strcasecmp() 不区分大小写的全串比较
     s2: 0x7fff589c53ac
     &s2: 0x7fff589c53a0
     ```
+11. 不去强制类型转换malloc, calloc, realloc的返回值；并使用`source_t *temp = malloc(sizeof *temp);`动态分配空间————而不是使用类型作为malloc的参数。
+
+## 问题
+
+1. 不会用gdb，bad
+2. 出现了奇怪的错误，又不能精确复现了
+
+```
+db > .exit
+1123db(45727,0x7fff9539a3c0) malloc: *** error for object 0x7feee7c027c8: incorrect checksum for freed object - object was probably modified after being freed.
+*** set a breakpoint in malloc_error_break to debug
+make: *** [test] Abort trap: 6
+```
+
+> 关闭数据库时，把二进制文件重新输出了（可能只输出了一部分），然后报错。
+> 
+> 原以为是select的问题，最初select后直接.exit会出现问题；又不知为什么不报错了。
+> 
+> 可能的原因是，我用vscode同时打开了它。。但好像又不是。。啊。。
