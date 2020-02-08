@@ -30,6 +30,23 @@ make test
 4. 只在需要时分配page
 5. keep a fixed-size array of pointers to pages(?)
 
+可选择的Table结构：
+
+|               | unsorted array | sorted array | tree                             |
+| ------------- | -------------- | ------------ | -------------------------------- |
+| pages contain | only data      | only data    | metadata, primary keys, and data |
+| rows per page | more           | more         | fewer                            |
+| insertion     | O(1)           | O(n)         | O(logn)                          |
+| deletion      | O(n)           | O(n)         | O(logn)                          |
+| lookup        | O(n)           | O(logn)      | O(logn)                          |
+
+使用树结构，用一定的空间换取了更好的操作效率。
+
+由数组更改为树，要注意的地方：
+1. 每个cell以key-value格式存储，id被视为key，但它在value中也存了一遍
+2. 
+
+
 ### B树，B+树
 
 Sqlite使用B树存储索引，使用B+树存储表。一般的随机访问，B+树更稳定。

@@ -12,38 +12,98 @@ const uint32_t PAGE_SIZE = 4096;
 const uint32_t ROWS_PER_PAGE = PAGE_SIZE / ROW_SIZE;
 const uint32_t TABLE_MAX_ROWS = ROWS_PER_PAGE * TABLE_MAX_PAGES;
 
+const uint32_t NODE_TYPE_SIZE = sizeof(uint8_t);
+const uint32_t NODE_TYPE_OFFSET = 0;
+const uint32_t IS_ROOT_SIZE = sizeof(uint8_t);
+const uint32_t IS_ROOT_OFFSET = NODE_TYPE_SIZE;
+const uint32_t PARENT_POINTER_SIZE = sizeof(uint32_t);
+const uint32_t PARENT_POINTER_OFFSET = IS_ROOT_OFFSET + IS_ROOT_SIZE;
+const uint32_t COMMON_NODE_HEADER_SIZE = 
+    NODE_TYPE_SIZE + IS_ROOT_SIZE + PARENT_POINTER_SIZE;
+
+const uint32_t LEAF_NODE_NUM_CELLS_SIZE = sizeof(uint32_t);
+const uint32_t LEAF_NODE_NUM_CELLS_OFFSET = COMMON_NODE_HEADER_SIZE;
+const uint32_t LEAF_NODE_HEADER_SIZE =
+    COMMON_NODE_HEADER_SIZE + LEAF_NODE_NUM_CELLS_SIZE;
+
+const uint32_t LEAF_NODE_KEY_SIZE = sizeof(uint32_t);
+const uint32_t LEAF_NODE_KEY_OFFSET = 0;
+const uint32_t LEAF_NODE_VALUE_SIZE = ROW_SIZE;
+const uint32_t LEAF_NODE_VALUE_OFFSET =
+    LEAF_NODE_KEY_OFFSET + LEAF_NODE_KEY_SIZE;
+const uint32_t LEAF_NODE_CELL_SIZE = LEAF_NODE_KEY_SIZE + LEAF_NODE_VALUE_SIZE;
+const uint32_t LEAF_NODE_SPACE_FOR_CELLS = PAGE_SIZE - LEAF_NODE_HEADER_SIZE;
+const uint32_t LEAF_NODE_MAX_CELLS =
+    LEAF_NODE_SPACE_FOR_CELLS / LEAF_NODE_CELL_SIZE;
+
+uint32_t* leaf_node_num_cells(void* node) {
+    return node + LEAF_NODE_NUM_CELLS_OFFSET;
+}
+
+void* leaf_node_cell(void* node, uint32_t cell_num) {
+    return node + LEAF_NODE_HEADER_SIZE + cell_num * LEAF_NODE_CELL_SIZE; 
+}
+
+uint32_t* leaf_node_key(void* node, uint32_t cell_num) {
+    return leaf_node_cell(node, cell_num);
+}
+
+void* leaf_node_value(void* node, uint32_t cell_num) {
+    return leaf_node_cell(node, cell_num) + LEAF_NODE_KEY_SIZE;
+}
+
+void initialize_leaf_node(void* node) {
+    *leaf_node_num_cells(node) = 0;
+}
+
+void leaf_node_insert(Cursor *cursor, uint32_t key, Row *value) {
+    // 如何知道cursor的指向第几个cell呢？
+    void* node = get_page(cursor->table->pager, cursor->page_num);
+    uint32_t num_cells = *leaf_node_num_cells(node);
+    // printf("Num Cells: %d\n", num_cells);
+    if(num_cells >= LEAF_NODE_MAX_CELLS) {
+        printf("Need to implement splitting a leaf node.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if(cursor->cell_num < num_cells) {
+        for (uint32_t i=num_cells; i>cursor->cell_num; i--) {
+            memcpy(leaf_node_cell(node, i), leaf_node_cell(node, i-1), LEAF_NODE_CELL_SIZE);
+        }
+    }
+    
+    *(leaf_node_num_cells(node)) += 1;
+    *(leaf_node_key(node, cursor->cell_num)) = key;
+    serialize_row(value, leaf_node_value(node, cursor->cell_num));
+
+    // for(int i=0;i<num_cells+1;i++) {
+    //     printf("%d", *leaf_node_key(node, i));
+    // }
+}
+
 Table* db_open(char* filename) { 
     Pager* pager = pager_open(filename);
     Table* table = malloc(sizeof(Table));
     table->pager = pager;
-    table->num_rows = pager->file_length / ROW_SIZE;
+    table->root_page_num = 0;
+    if (pager->num_pages == 0) {
+        // 是一个新的file，将0号page初始化为root
+        void* root_node = get_page(pager, 0);
+        initialize_leaf_node(root_node);
+    }
     return table;
 }
 
-// 将内存中的table的每一行写回磁盘。也即将pager中每个page按序写回磁盘
-// 仅根据pager，找不到最后一页
-void db_close(Table* table) { 
-    // printf("I'm I here?\n");
-    Pager* pager = table->pager;
-    uint32_t full_page_count = table->num_rows / ROWS_PER_PAGE;
 
-    for (uint32_t i = 0; i < full_page_count; i++) {
+void db_close(Table* table) { 
+    Pager* pager = table->pager;
+
+    for (uint32_t i = 0; i < pager->num_pages; i++) {
         if(pager->pages[i] == NULL) continue; // 内存中可能没有取过这一页
-        pager_flush(pager, i, PAGE_SIZE); 
+        pager_flush(pager, i); 
         free(pager->pages[i]);
         pager->pages[i] = NULL;
-    }
-    
-    uint32_t rest_rows_count = table->num_rows % ROWS_PER_PAGE;
-    if(rest_rows_count > 0) {
-        // 将最后一个有效页的有效行 写回。 
-        // 虽然代码没有禁止 随机的页访问，但代码逻辑是从小到大依次访问的。
-        uint32_t last_page = full_page_count;
-        if (pager->pages[last_page] != NULL) {
-            pager_flush(pager, last_page, rest_rows_count * ROW_SIZE);
-            free(pager->pages[last_page]);
-            pager->pages[last_page] = NULL;
-        }
+        printf("Flush page %d successed.\n", i);
     }
     
     int result = close(pager->fd);
@@ -79,6 +139,12 @@ Pager *pager_open(char *filename) {
     Pager* pager = malloc(sizeof(Pager));
     pager->fd = fd;
     pager->file_length = file_length;
+    pager->num_pages = file_length / PAGE_SIZE;
+    
+    if(file_length % PAGE_SIZE != 0) {
+        printf("Db file is not a whole number of pages. Corrupt file.\n");
+        exit(EXIT_FAILURE);
+    }
 
     for (uint32_t i = 0; i < TABLE_MAX_PAGES; i++) {
         pager->pages[i] = NULL;
@@ -87,12 +153,11 @@ Pager *pager_open(char *filename) {
     return pager;
 }
 
-void pager_flush(Pager* pager, uint32_t page_num, uint32_t size) {
+void pager_flush(Pager* pager, uint32_t page_num) {
     if (pager->pages[page_num] == NULL) {
         printf("Error: type to flush a NULL page\n");
         exit(EXIT_FAILURE);
     }
-    if(size > PAGE_SIZE) size = PAGE_SIZE;
 
     // 必须按序增长磁盘文件的大小
     off_t file_offset = lseek(pager->fd, page_num*PAGE_SIZE, SEEK_SET);
@@ -102,7 +167,7 @@ void pager_flush(Pager* pager, uint32_t page_num, uint32_t size) {
         exit(EXIT_FAILURE);
     }
 
-    ssize_t bytes_written = write(pager->fd, pager->pages[page_num], size);
+    ssize_t bytes_written = write(pager->fd, pager->pages[page_num], PAGE_SIZE);
 
     if(bytes_written == -1) {
         printf("Error writing:%d\n", errno);
@@ -131,8 +196,11 @@ void* get_page(Pager* pager, uint32_t page_num) {
                 exit(EXIT_FAILURE);
             }
         }
-
+        
         pager->pages[page_num] = page;
+        if(page_num >= pager->num_pages) {
+            pager->num_pages = page_num + 1;
+        }
     }
     return pager->pages[page_num];
 }
@@ -140,17 +208,27 @@ void* get_page(Pager* pager, uint32_t page_num) {
 Cursor* table_start(Table *table) {
     Cursor *cursor = malloc(sizeof(Cursor));
     cursor->table = table;
-    cursor->row_num = 0;
-    cursor->end_of_table = (table->num_rows == 0);
+    // cursor->row_num = 0;
+    // cursor->end_of_table = (table->num_rows == 0);
+    cursor->page_num = table->root_page_num;
+    cursor->cell_num = 0;
+
+    void* root_node = get_page(table->pager, table->root_page_num);
+    uint32_t num_cells = *leaf_node_num_cells(root_node);
     
+    cursor->end_of_table = (num_cells == 0);
     return cursor;
 }
 
 Cursor* table_end(Table *table) {
     Cursor *cursor = malloc(sizeof(Cursor));
     cursor->table = table;
-    cursor->row_num = table->num_rows;
-    cursor->end_of_table = (table->num_rows == 0);
+    // cursor->row_num = table->num_rows;
+    cursor->page_num = table->root_page_num;
+    void *root_node = get_page(table->pager, table->root_page_num);
+    uint32_t num_cells = *leaf_node_num_cells(root_node);
+    cursor->cell_num = num_cells;
+    cursor->end_of_table = true; // 应该改个名字，叫end_of_node
 
     return cursor;
 }
@@ -159,17 +237,20 @@ Cursor* table_end(Table *table) {
  * Cursor的值是void*————就是指向的行的地址嘛。
  */ 
 void* cursor_value(Cursor* cursor) {
-    uint32_t row_num = cursor->row_num;
-    uint32_t page_num = row_num / ROWS_PER_PAGE;
+    // uint32_t row_num = cursor->row_num;
+    // uint32_t page_num = row_num / ROWS_PER_PAGE;
+    uint32_t page_num = cursor->page_num;
     void* page = get_page(cursor->table->pager, page_num); // 不存在，则去磁盘上读
-    uint32_t row_offset = row_num % ROWS_PER_PAGE;
-    uint32_t byte_offset = row_offset * ROW_SIZE;
-    return page + byte_offset;
+    // uint32_t row_offset = row_num % ROWS_PER_PAGE;
+    // uint32_t byte_offset = row_offset * ROW_SIZE;
+    return leaf_node_value(page, cursor->cell_num);
 }
 
 void cursor_advance(Cursor* cursor) { 
-    cursor->row_num += 1;
-    if(cursor->row_num >= cursor->table->num_rows) {
+    uint32_t page_num = cursor->page_num;
+    void* node = get_page(cursor->table->pager, page_num);
+    cursor->cell_num += 1;
+    if(cursor->cell_num >= (*leaf_node_num_cells(node))) {
         cursor->end_of_table = true;
     }
 }
@@ -204,3 +285,4 @@ void deserialize_row(void* source, Row* dest) {
 void print_row(Row *row) {
     printf("(%d, %s, %s)\n", row->id, row->username, row->email);
 }
+
