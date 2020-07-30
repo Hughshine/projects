@@ -1,9 +1,17 @@
 # Golang Chat Server
 
+
 > W.I.P
 > 
 > Doc is [here](https://www.thepolyglotdeveloper.com/2016/12/create-real-time-chat-app-golang-angular-2-websockets/)
 
+## Usage
+
+Server(Backend is written in Golang), Client is of Angular(do not know what it is exactly :-( ).
+
+1. Firstly, start the server by executing `go run *.go` in `server/main/`
+2. Then, `ng build` and `ng serve` in `client`. 
+3. Finally, you can enjoy the project by running multiple clients in your explorer.
 
 ## Something about Golang
 
